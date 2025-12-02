@@ -12,8 +12,8 @@
  * The camera provides live feed and scans barcodes/QR codes.
  */
 
-import React, { useState, useCallback } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../context/CartContext';
@@ -58,6 +58,13 @@ const ScannerScreen = () => {
       Alert.alert('Error', 'Failed to request camera permission');
     }
   }, [requestPermission]);
+
+  // Automatically ask for permission on first mount
+  useEffect(() => {
+    if (!permission || !permission.granted) {
+      handleRequestPermission();
+    }
+  }, [permission, handleRequestPermission]);
 
   /**
    * Handle barcode scan
