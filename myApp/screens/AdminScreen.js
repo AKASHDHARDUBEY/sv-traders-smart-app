@@ -1,4 +1,23 @@
-import React, { useState } from 'react';
+/**
+ * ADMIN SCREEN - Admin dashboard for managing inventory and orders
+ * 
+ * This screen demonstrates:
+ * - useState: Managing multiple state variables
+ * - useMemo: Memoizing calculated statistics
+ * - useCallback: Memoizing functions
+ * - React.memo: Memoizing list item components
+ * - FlatList Virtual Scrolling: Efficient rendering of inventory and orders
+ * - React Native Styling: Creating admin dashboard UI
+ * 
+ * Features:
+ * - View and manage inventory
+ * - View orders
+ * - Add new products
+ * - Update stock levels
+ * - View statistics
+ */
+
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -10,9 +29,72 @@ import {
   FlatList,
 } from 'react-native';
 
+/**
+ * INVENTORY ITEM COMPONENT
+ * React.memo prevents re-rendering unless props change
+ */
+const InventoryItem = memo(({ item, onStockUpdate }) => {
+  const handleStockChange = (text) => {
+    const newStock = parseInt(text) || 0;
+    onStockUpdate(item.id, newStock);
+  };
+
+  return (
+    <View style={styles.inventoryItem}>
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        <Text style={styles.itemCategory}>{item.category}</Text>
+        <Text style={styles.itemPrice}>₹{item.price}</Text>
+      </View>
+      <View style={styles.stockContainer}>
+        <Text style={styles.stockLabel}>Stock:</Text>
+        <TextInput
+          style={styles.stockInput}
+          value={item.stock.toString()}
+          onChangeText={handleStockChange}
+          keyboardType="numeric"
+        />
+      </View>
+    </View>
+  );
+});
+
+InventoryItem.displayName = 'InventoryItem';
+
+/**
+ * ORDER ITEM COMPONENT
+ * React.memo prevents unnecessary re-renders
+ */
+const OrderItem = memo(({ item, getStatusColor }) => {
+  const statusColor = useMemo(() => getStatusColor(item.status), [item.status, getStatusColor]);
+
+  return (
+    <View style={styles.orderItem}>
+      <View style={styles.orderInfo}>
+        <Text style={styles.orderId}>Order #{item.id}</Text>
+        <Text style={styles.customerName}>{item.customer}</Text>
+        <Text style={styles.orderDate}>{item.date}</Text>
+      </View>
+      <View style={styles.orderDetails}>
+        <Text style={styles.orderTotal}>₹{item.total}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+          <Text style={styles.statusText}>{item.status}</Text>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+OrderItem.displayName = 'OrderItem';
+
+/**
+ * MAIN ADMIN SCREEN COMPONENT
+ */
 const AdminScreen = ({ navigation }) => {
+  // Active tab state
   const [activeTab, setActiveTab] = useState('inventory');
   
+  // Inventory state
   const [inventory, setInventory] = useState([
     { id: '1', name: 'Premium Rice 5kg', stock: 50, price: 250, category: 'Food' },
     { id: '2', name: 'Cooking Oil 1L', stock: 30, price: 120, category: 'Food' },
@@ -22,13 +104,15 @@ const AdminScreen = ({ navigation }) => {
     { id: '6', name: 'Detergent Powder 5kg', stock: 20, price: 150, category: 'Home' },
   ]);
 
+  // Orders state
   const [orders] = useState([
-    { id: '1', customer: 'Janne Doe', total: 450, status: 'Pending', date: '2024-01-15' },
+    { id: '1', customer: 'John Doe', total: 450, status: 'Pending', date: '2024-01-15' },
     { id: '2', customer: 'Jane Smith', total: 320, status: 'Completed', date: '2024-01-14' },
     { id: '3', customer: 'Bob Johnson', total: 180, status: 'Processing', date: '2024-01-14' },
     { id: '4', customer: 'Alice Brown', total: 250, status: 'Pending', date: '2024-01-13' },
   ]);
 
+  // New product form state
   const [newProduct, setNewProduct] = useState({
     name: '',
     price: '',
@@ -36,7 +120,35 @@ const AdminScreen = ({ navigation }) => {
     category: '',
   });
 
-  const addProduct = () => {
+  /**
+   * Get status color for order badges
+   * useCallback memoizes this function
+   */
+  const getStatusColor = useCallback((status) => {
+    if (status === 'Completed') return '#27ae60';
+    if (status === 'Processing') return '#f39c12';
+    if (status === 'Pending') return '#e74c3c';
+    return '#95a5a6';
+  }, []);
+
+  /**
+   * Calculate inventory statistics
+   * useMemo caches the result - only recalculates when inventory changes
+   * This is React Memoization - prevents unnecessary calculations
+   */
+  const stats = useMemo(() => {
+    const totalProducts = inventory.length;
+    const lowStockItems = inventory.filter(item => item.stock < 10).length;
+    const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.stock), 0);
+    
+    return { totalProducts, lowStockItems, totalValue };
+  }, [inventory]);
+
+  /**
+   * Add new product
+   * useCallback prevents function recreation
+   */
+  const addProduct = useCallback(() => {
     if (!newProduct.name || !newProduct.price || !newProduct.stock || !newProduct.category) {
       Alert.alert('Error', 'Please fill all fields');
       return;
@@ -50,78 +162,66 @@ const AdminScreen = ({ navigation }) => {
       category: newProduct.category,
     };
 
-    setInventory([...inventory, product]);
+    setInventory(prev => [...prev, product]);
     setNewProduct({ name: '', price: '', stock: '', category: '' });
     Alert.alert('Success', 'Product added successfully!');
-  };
+  }, [newProduct, inventory.length]);
 
-  const updateStock = (productId, newStock) => {
-    setInventory(inventory.map(item => {
-      if (item.id === productId) {
-        return { ...item, stock: newStock };
-      }
-      return item;
-    }));
-  };
+  /**
+   * Update stock for a product
+   * useCallback prevents function recreation
+   */
+  const updateStock = useCallback((productId, newStock) => {
+    setInventory(prev => prev.map(item => 
+      item.id === productId ? { ...item, stock: newStock } : item
+    ));
+  }, []);
 
-  const renderInventoryItem = ({ item }) => (
-    <View style={styles.inventoryItem}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemCategory}>{item.category}</Text>
-        <Text style={styles.itemPrice}>₹{item.price}</Text>
-      </View>
-      <View style={styles.stockContainer}>
-        <Text style={styles.stockLabel}>Stock:</Text>
-        <TextInput
-          style={styles.stockInput}
-          value={item.stock.toString()}
-          onChangeText={(text) => updateStock(item.id, parseInt(text) || 0)}
-          keyboardType="numeric"
-        />
-      </View>
-    </View>
-  );
+  /**
+   * Update new product form field
+   * useCallback prevents function recreation
+   */
+  const updateNewProductField = useCallback((field, value) => {
+    setNewProduct(prev => ({ ...prev, [field]: value }));
+  }, []);
 
-  const renderOrderItem = ({ item }) => (
-    <View style={styles.orderItem}>
-      <View style={styles.orderInfo}>
-        <Text style={styles.orderId}>Order #{item.id}</Text>
-        <Text style={styles.customerName}>{item.customer}</Text>
-        <Text style={styles.orderDate}>{item.date}</Text>
-      </View>
-      <View style={styles.orderDetails}>
-        <Text style={styles.orderTotal}>₹{item.total}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <Text style={styles.statusText}>{item.status}</Text>
-        </View>
-      </View>
-    </View>
-  );
+  /**
+   * Render inventory item
+   * useCallback prevents function recreation - important for FlatList
+   */
+  const renderInventoryItem = useCallback(({ item }) => (
+    <InventoryItem
+      item={item}
+      onStockUpdate={updateStock}
+    />
+  ), [updateStock]);
 
-  const getStatusColor = (status) => {
-    if (status === 'Completed') return '#27ae60';
-    if (status === 'Processing') return '#f39c12';
-    if (status === 'Pending') return '#e74c3c';
-    return '#95a5a6';
-  };
+  /**
+   * Render order item
+   * useCallback prevents function recreation
+   */
+  const renderOrderItem = useCallback(({ item }) => (
+    <OrderItem
+      item={item}
+      getStatusColor={getStatusColor}
+    />
+  ), [getStatusColor]);
 
-  const getInventoryStats = () => {
-    const totalProducts = inventory.length;
-    const lowStockItems = inventory.filter(item => item.stock < 10).length;
-    const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.stock), 0);
-    
-    return { totalProducts, lowStockItems, totalValue };
-  };
-
-  const stats = getInventoryStats();
+  /**
+   * Key extractors for FlatList
+   * useCallback prevents function recreation
+   */
+  const inventoryKeyExtractor = useCallback((item) => item.id, []);
+  const orderKeyExtractor = useCallback((item) => item.id, []);
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Admin Dashboard</Text>
       </View>
 
+      {/* Statistics Cards */}
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{stats.totalProducts}</Text>
@@ -137,6 +237,7 @@ const AdminScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Tab Navigation */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'inventory' && styles.activeTab]}
@@ -164,31 +265,43 @@ const AdminScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
+      {/* Content Area */}
       <ScrollView style={styles.content}>
+        {/* Inventory Tab */}
         {activeTab === 'inventory' && (
           <View>
             <Text style={styles.sectionTitle}>Inventory Management</Text>
             <FlatList
               data={inventory}
               renderItem={renderInventoryItem}
-              keyExtractor={item => item.id}
+              keyExtractor={inventoryKeyExtractor}
               showsVerticalScrollIndicator={false}
+              scrollEnabled={false} // Let parent ScrollView handle scrolling
+              // Virtual scrolling optimizations
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
             />
           </View>
         )}
 
+        {/* Orders Tab */}
         {activeTab === 'orders' && (
           <View>
             <Text style={styles.sectionTitle}>Recent Orders</Text>
             <FlatList
               data={orders}
               renderItem={renderOrderItem}
-              keyExtractor={item => item.id}
+              keyExtractor={orderKeyExtractor}
               showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+              // Virtual scrolling optimizations
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
             />
           </View>
         )}
 
+        {/* Add Product Tab */}
         {activeTab === 'add' && (
           <View style={styles.addProductForm}>
             <Text style={styles.sectionTitle}>Add New Product</Text>
@@ -197,14 +310,14 @@ const AdminScreen = ({ navigation }) => {
               style={styles.input}
               placeholder="Product Name"
               value={newProduct.name}
-              onChangeText={(text) => setNewProduct({...newProduct, name: text})}
+              onChangeText={(text) => updateNewProductField('name', text)}
             />
             
             <TextInput
               style={styles.input}
               placeholder="Price"
               value={newProduct.price}
-              onChangeText={(text) => setNewProduct({...newProduct, price: text})}
+              onChangeText={(text) => updateNewProductField('price', text)}
               keyboardType="numeric"
             />
             
@@ -212,7 +325,7 @@ const AdminScreen = ({ navigation }) => {
               style={styles.input}
               placeholder="Stock Quantity"
               value={newProduct.stock}
-              onChangeText={(text) => setNewProduct({...newProduct, stock: text})}
+              onChangeText={(text) => updateNewProductField('stock', text)}
               keyboardType="numeric"
             />
             
@@ -220,7 +333,7 @@ const AdminScreen = ({ navigation }) => {
               style={styles.input}
               placeholder="Category"
               value={newProduct.category}
-              onChangeText={(text) => setNewProduct({...newProduct, category: text})}
+              onChangeText={(text) => updateNewProductField('category', text)}
             />
             
             <TouchableOpacity style={styles.addButton} onPress={addProduct}>
@@ -233,6 +346,7 @@ const AdminScreen = ({ navigation }) => {
   );
 };
 
+// React Native Styling
 const styles = StyleSheet.create({
   container: {
     flex: 1,

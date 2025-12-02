@@ -1,4 +1,20 @@
-import React, { useState } from 'react';
+/**
+ * LOGIN SCREEN - User authentication
+ * 
+ * This screen demonstrates:
+ * - useState: Managing form input state
+ * - useContext: Accessing user context for login
+ * - Navigation: Using navigation to move between screens
+ * - React Native Styling: Creating beautiful UI with StyleSheet
+ * - useCallback: Memoizing functions to prevent re-renders
+ * 
+ * Users can:
+ * - Enter username and password
+ * - Select their role (B2C, B2B, or Admin)
+ * - Login and navigate to main app
+ */
+
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,16 +23,51 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useUser } from '../context/UserContext';
 
+/**
+ * LoginScreen Component
+ */
 const LoginScreen = ({ navigation }) => {
+  // Form state using useState
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  
+  // Get login function from user context
   const { login } = useUser();
 
-  const handleLogin = () => {
+  /**
+   * Role options for user selection
+   * useMemo caches this array - prevents recreation on every render
+   */
+  const roles = useMemo(() => [
+    { 
+      id: 'b2c', 
+      title: 'Retail Customer (B2C)', 
+      description: 'Buy small quantities' 
+    },
+    { 
+      id: 'b2b', 
+      title: 'Wholesale Buyer (B2B)', 
+      description: 'Place bulk orders' 
+    },
+    { 
+      id: 'admin', 
+      title: 'SV Traders Admin', 
+      description: 'Manage inventory & orders' 
+    },
+  ], []);
+
+  /**
+   * Handle login button press
+   * useCallback memoizes this function - prevents recreation
+   * This is important for performance (React Memoization)
+   */
+  const handleLogin = useCallback(() => {
     // Basic validation
     if (!username || !password || !selectedRole) {
       Alert.alert('Error', 'Please fill all fields and select a role');
@@ -29,18 +80,18 @@ const LoginScreen = ({ navigation }) => {
     }
 
     // Simple authentication logic
+    // In a real app, you would validate against your backend API here
     try {
-      // For demo purposes, accept any username/password
-      // In a real app, you would validate against your backend here
       console.log('Login attempt with:', { username, role: selectedRole });
       
-      // Set user in context
+      // Set user in context (this also saves to AsyncStorage via context)
       login({
         username,
         role: selectedRole
       });
       
       // Navigate to MainApp
+      // reset() clears navigation history so user can't go back to login
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainApp' }]
@@ -49,75 +100,101 @@ const LoginScreen = ({ navigation }) => {
       console.error('Login error:', error);
       Alert.alert('Login Failed', 'An error occurred during login. Please try again.');
     }
-  };
+  }, [username, password, selectedRole, login, navigation]);
 
-  const roles = [
-    { id: 'b2c', title: 'Retail Customer (B2C)', description: 'Buy small quantities' },
-    { id: 'b2b', title: 'Wholesale Buyer (B2B)', description: 'Place bulk orders' },
-    { id: 'admin', title: 'SV Traders Admin', description: 'Manage inventory & orders' },
-  ];
+  /**
+   * Handle role selection
+   * useCallback prevents function recreation
+   */
+  const handleRoleSelect = useCallback((roleId) => {
+    setSelectedRole(roleId);
+  }, []);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <Text style={styles.title}>SV Traders</Text>
-        <Text style={styles.subtitle}>Smart B2B & B2C Retail App</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header Section */}
+        <View style={styles.header}>
+          <Text style={styles.title}>SV Traders</Text>
+          <Text style={styles.subtitle}>Smart B2B & B2C Retail App</Text>
+        </View>
 
-      <View style={styles.form}>
-        <Text style={styles.formTitle}>Login</Text>
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Username"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-        />
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        {/* Login Form */}
+        <View style={styles.form}>
+          <Text style={styles.formTitle}>Login</Text>
+          
+          {/* Username Input */}
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          
+          {/* Password Input */}
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-        <Text style={styles.roleTitle}>Select Your Role:</Text>
-        {roles.map((role) => (
-          <TouchableOpacity
-            key={role.id}
-            style={[
-              styles.roleButton,
-              selectedRole === role.id && styles.roleButtonSelected
-            ]}
-            onPress={() => setSelectedRole(role.id)}
-          >
-            <Text style={[
-              styles.roleButtonText,
-              selectedRole === role.id && styles.roleButtonTextSelected
-            ]}>
-              {role.title}
-            </Text>
-            <Text style={styles.roleDescription}>{role.description}</Text>
+          {/* Role Selection */}
+          <Text style={styles.roleTitle}>Select Your Role:</Text>
+          {roles.map((role) => (
+            <TouchableOpacity
+              key={role.id}
+              style={[
+                styles.roleButton,
+                selectedRole === role.id && styles.roleButtonSelected
+              ]}
+              onPress={() => handleRoleSelect(role.id)}
+            >
+              <Text style={[
+                styles.roleButtonText,
+                selectedRole === role.id && styles.roleButtonTextSelected
+              ]}>
+                {role.title}
+              </Text>
+              <Text style={styles.roleDescription}>{role.description}</Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* Login Button */}
+          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+            <Text style={styles.loginButtonText}>Login</Text>
           </TouchableOpacity>
-        ))}
-
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Login</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
+// React Native Styling
+// StyleSheet.create optimizes styles and validates them
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  scrollView: {
+    flex: 1,
+  },
   contentContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',

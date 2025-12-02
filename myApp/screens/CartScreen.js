@@ -1,4 +1,22 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * CART SCREEN - Shopping cart and checkout
+ * 
+ * This screen demonstrates:
+ * - useContext: Accessing cart and user context
+ * - useMemo: Memoizing calculated values (discounts, totals)
+ * - useCallback: Memoizing functions to prevent re-renders
+ * - React.memo: Memoizing cart item components
+ * - React Native Styling: Creating beautiful cart UI
+ * 
+ * Features:
+ * - View cart items
+ * - Update quantities
+ * - Remove items
+ * - Calculate totals with B2B discounts
+ * - Place orders
+ */
+
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -7,12 +25,56 @@ import {
   StyleSheet,
   TextInput,
   Alert,
-  Button,
 } from 'react-native';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
 
+/**
+ * CART ITEM COMPONENT
+ * 
+ * React.memo prevents re-rendering unless props change.
+ * This improves performance when cart has many items.
+ */
+const CartItem = memo(({ item, onQuantityChange, onRemove }) => {
+  return (
+    <View style={styles.cartItem}>
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        <Text style={styles.itemPrice}>
+          ₹{item.price} x {item.quantity || 1} = ₹{(item.price * (item.quantity || 1)).toFixed(2)}
+        </Text>
+      </View>
+      
+      <View style={styles.quantityContainer}>
+        <TouchableOpacity
+          style={styles.quantityButton}
+          onPress={() => onQuantityChange(item.id, -1)}
+        >
+          <Text style={styles.quantityButtonText}>-</Text>
+        </TouchableOpacity>
+        
+        <Text style={styles.quantityText}>
+          {item.quantity || 1}
+        </Text>
+        
+        <TouchableOpacity
+          style={styles.quantityButton}
+          onPress={() => onQuantityChange(item.id, 1)}
+        >
+          <Text style={styles.quantityButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
+CartItem.displayName = 'CartItem';
+
+/**
+ * MAIN CART SCREEN COMPONENT
+ */
 const CartScreen = ({ navigation }) => {
+  // Get cart data and functions from context
   const { 
     items: cart, 
     removeItemFromCart, 
@@ -22,23 +84,39 @@ const CartScreen = ({ navigation }) => {
     itemCount 
   } = useCart();
   
+  // Get user data from context
   const { user } = useUser();
   const userRole = user?.role || 'b2c';
   
+  // Customer information state
   const [customerInfo, setCustomerInfo] = useState({
     name: user?.username || '',
     phone: '',
     address: '',
   });
 
-  // Debug log
-  useEffect(() => {
-    console.log('CartScreen - Current cart items:', cart);
-    console.log('CartScreen - Cart total:', cartTotal);
-    console.log('CartScreen - Item count:', itemCount);
-  }, [cart, cartTotal, itemCount]);
+  /**
+   * Calculate discount and total
+   * useMemo caches the result - only recalculates when cartTotal or userRole changes
+   * This is React Memoization - prevents unnecessary calculations
+   */
+  const totals = useMemo(() => {
+    const discount = userRole === 'b2b' ? cartTotal * 0.1 : 0;
+    const total = cartTotal - discount;
+    
+    return {
+      subtotal: cartTotal,
+      discount: discount,
+      total: total
+    };
+  }, [cartTotal, userRole]);
 
-  const handleQuantityChange = (productId, change) => {
+  /**
+   * Handle quantity change
+   * useCallback memoizes this function - prevents recreation
+   * This prevents CartItem from re-rendering unnecessarily
+   */
+  const handleQuantityChange = useCallback((productId, change) => {
     const item = cart.find(item => item.id === productId);
     if (item) {
       const newQuantity = (item.quantity || 1) + change;
@@ -48,18 +126,13 @@ const CartScreen = ({ navigation }) => {
         removeItemFromCart(productId);
       }
     }
-  };
+  }, [cart, updateItemQuantity, removeItemFromCart]);
 
-  const discount = userRole === 'b2b' ? cartTotal * 0.1 : 0;
-  const total = cartTotal - discount;
-  
-  const totals = {
-    subtotal: cartTotal,
-    discount: discount,
-    total: total
-  };
-
-  const handlePlaceOrder = () => {
+  /**
+   * Handle place order
+   * useCallback prevents function recreation
+   */
+  const handlePlaceOrder = useCallback(() => {
     if (cart.length === 0) {
       Alert.alert('Error', 'Your cart is empty');
       return;
@@ -70,32 +143,49 @@ const CartScreen = ({ navigation }) => {
       return;
     }
     
+    // Generate order ID
+    const orderId = Math.floor(Math.random() * 10000);
+    
     Alert.alert(
       'Order Placed!',
-      `Thank you ${customerInfo.name}!\n\nOrder Total: ₹${total.toFixed(2)}\nItems: ${cart.length}\n\nOrder ID: #${Math.floor(Math.random() * 10000)}`,
+      `Thank you ${customerInfo.name}!\n\nOrder Total: ₹${totals.total.toFixed(2)}\nItems: ${cart.length}\n\nOrder ID: #${orderId}`,
       [
         {
           text: 'OK',
           onPress: () => {
             clearCart();
-            navigation.navigate('Home');
+            navigation.navigate('ProductList');
           },
         },
       ]
     );
-  };
+  }, [cart, customerInfo, totals, clearCart, navigation]);
 
-  const handleScanMore = () => {
+  /**
+   * Navigate to scanner
+   * useCallback memoizes this function
+   */
+  const handleScanMore = useCallback(() => {
     navigation.navigate('Scanner');
-  };
+  }, [navigation]);
+
+  /**
+   * Update customer info field
+   * useCallback prevents recreation
+   */
+  const updateCustomerInfo = useCallback((field, value) => {
+    setCustomerInfo(prev => ({ ...prev, [field]: value }));
+  }, []);
 
   return (
     <ScrollView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Shopping Cart</Text>
         <Text style={styles.cartCount}>{itemCount} items</Text>
       </View>
 
+      {/* Empty Cart State */}
       {cart.length === 0 ? (
         <View style={styles.emptyCart}>
           <Text style={styles.emptyCartText}>Your cart is empty</Text>
@@ -108,39 +198,19 @@ const CartScreen = ({ navigation }) => {
         </View>
       ) : (
         <>
+          {/* Cart Items */}
           <View style={styles.cartItems}>
             {cart.map((item) => (
-              <View key={item.id} style={styles.cartItem}>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemPrice}>
-                    ₹{item.price} x {item.quantity || 1} = ₹{(item.price * (item.quantity || 1)).toFixed(2)}
-                  </Text>
-                </View>
-                
-                <View style={styles.quantityContainer}>
-                  <TouchableOpacity
-                    style={styles.quantityButton}
-                    onPress={() => handleQuantityChange(item.id, -1)}
-                  >
-                    <Text style={styles.quantityButtonText}>-</Text>
-                  </TouchableOpacity>
-                  
-                  <Text style={styles.quantityText}>
-                    {item.quantity || 1}
-                  </Text>
-                  
-                  <TouchableOpacity
-                    style={styles.quantityButton}
-                    onPress={() => handleQuantityChange(item.id, 1)}
-                  >
-                    <Text style={styles.quantityButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <CartItem
+                key={item.id}
+                item={item}
+                onQuantityChange={handleQuantityChange}
+                onRemove={removeItemFromCart}
+              />
             ))}
           </View>
 
+          {/* Customer Information Form */}
           <View style={styles.customerInfo}>
             <Text style={styles.sectionTitle}>Customer Information</Text>
             
@@ -148,14 +218,14 @@ const CartScreen = ({ navigation }) => {
               style={styles.input}
               placeholder="Full Name"
               value={customerInfo.name}
-              onChangeText={(text) => setCustomerInfo({...customerInfo, name: text})}
+              onChangeText={(text) => updateCustomerInfo('name', text)}
             />
             
             <TextInput
               style={styles.input}
               placeholder="Phone Number"
               value={customerInfo.phone}
-              onChangeText={(text) => setCustomerInfo({...customerInfo, phone: text})}
+              onChangeText={(text) => updateCustomerInfo('phone', text)}
               keyboardType="phone-pad"
             />
             
@@ -163,35 +233,39 @@ const CartScreen = ({ navigation }) => {
               style={[styles.input, styles.addressInput]}
               placeholder="Delivery Address"
               value={customerInfo.address}
-              onChangeText={(text) => setCustomerInfo({...customerInfo, address: text})}
+              onChangeText={(text) => updateCustomerInfo('address', text)}
               multiline
               numberOfLines={3}
             />
           </View>
 
+          {/* Order Summary */}
           <View style={styles.orderSummary}>
             <Text style={styles.sectionTitle}>Order Summary</Text>
             
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal:</Text>
-              <Text style={styles.summaryValue}>₹{totals.subtotal}</Text>
+              <Text style={styles.summaryValue}>₹{totals.subtotal.toFixed(2)}</Text>
             </View>
             
+            {/* B2B Discount */}
             {userRole === 'b2b' && (
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>B2B Discount (10%):</Text>
                 <Text style={[styles.summaryValue, styles.discountValue]}>
-                  -₹{totals.discount}
+                  -₹{totals.discount.toFixed(2)}
                 </Text>
               </View>
             )}
             
+            {/* Total */}
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total:</Text>
-              <Text style={styles.totalValue}>₹{totals.total}</Text>
+              <Text style={styles.totalValue}>₹{totals.total.toFixed(2)}</Text>
             </View>
           </View>
 
+          {/* Action Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.actionButton, styles.scanButton]}
@@ -212,6 +286,7 @@ const CartScreen = ({ navigation }) => {
   );
 };
 
+// React Native Styling
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -247,6 +322,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    minHeight: 300,
   },
   emptyCartText: {
     fontSize: 18,
@@ -273,6 +349,7 @@ const styles = StyleSheet.create({
   cartItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ecf0f1',
@@ -314,13 +391,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
     minWidth: 20,
     textAlign: 'center',
-  },
-  itemTotal: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#27ae60',
-    minWidth: 60,
-    textAlign: 'right',
   },
   customerInfo: {
     backgroundColor: 'white',
@@ -390,6 +460,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    margin: 15,
     marginTop: 20,
     gap: 10,
   },
