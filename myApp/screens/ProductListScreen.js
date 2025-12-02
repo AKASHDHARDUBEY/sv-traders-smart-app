@@ -18,6 +18,7 @@ import React, { useState, useMemo, useCallback, memo } from 'react';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
 import { useProducts } from '../hooks/useProducts';
+import { useThemeMode } from '../theme/ThemeContext';
 import {
   View,
   Text,
@@ -31,14 +32,12 @@ import {
 
 /**
  * PRODUCT CARD COMPONENT
- * 
+ *
  * React.memo prevents this component from re-rendering unless its props change.
- * This is React Memoization - improves performance by avoiding unnecessary renders.
- * 
- * Without memo, this component would re-render every time parent re-renders,
- * even if the product data hasn't changed.
+ * Styles are passed in as a prop so that it works with the themed styles
+ * created inside the screen component.
  */
-const ProductCard = memo(({ item, onAddToCart, userRole }) => {
+const ProductCard = memo(({ item, onAddToCart, userRole, styles }) => {
   /**
    * Memoize the button style to prevent recalculation
    * useMemo caches the result
@@ -96,6 +95,7 @@ const ProductListScreen = ({ navigation }) => {
   const { user } = useUser();
   const userRole = user?.role || 'b2c';
   const { addItemToCart, items: cart, itemCount } = useCart();
+  const { theme, mode, toggleTheme } = useThemeMode();
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,6 +103,8 @@ const ProductListScreen = ({ navigation }) => {
   // Custom hook for products - handles fetching and filtering
   // This hook uses JavaScript fetch internally to get products from API
   const { products, isLoading, error, refreshProducts } = useProducts(searchQuery);
+
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   /**
    * Handle adding product to cart
@@ -125,13 +127,17 @@ const ProductListScreen = ({ navigation }) => {
    * useCallback prevents function recreation - important for FlatList performance
    * FlatList uses this function reference to determine if items need re-rendering
    */
-  const renderProduct = useCallback(({ item }) => (
-    <ProductCard
-      item={item}
-      onAddToCart={handleAddToCart}
-      userRole={userRole}
-    />
-  ), [handleAddToCart, userRole]);
+  const renderProduct = useCallback(
+    ({ item }) => (
+      <ProductCard
+        item={item}
+        onAddToCart={handleAddToCart}
+        userRole={userRole}
+        styles={styles}
+      />
+    ),
+    [handleAddToCart, userRole, styles]
+  );
 
   /**
    * Key extractor for FlatList
@@ -193,7 +199,17 @@ const ProductListScreen = ({ navigation }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{headerTitle}</Text>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.headerTitle}>{headerTitle}</Text>
+          <TouchableOpacity
+            style={styles.themeToggle}
+            onPress={toggleTheme}
+          >
+            <Text style={styles.themeToggleText}>
+              {mode === 'dark' ? 'Light' : 'Dark'}
+            </Text>
+          </TouchableOpacity>
+        </View>
         {bulkDiscountInfo}
       </View>
 
@@ -203,7 +219,7 @@ const ProductListScreen = ({ navigation }) => {
         placeholder="Search products..."
         value={searchQuery}
         onChangeText={setSearchQuery}
-        placeholderTextColor="#999"
+        placeholderTextColor={theme.textSecondary}
       />
 
       {/* 
@@ -254,18 +270,18 @@ const ProductListScreen = ({ navigation }) => {
 };
 
 // React Native Styling using StyleSheet
-// StyleSheet.create validates and optimizes styles
-const styles = StyleSheet.create({
+// Styles depend on current theme (light / dark)
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.background,
   },
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
-    backgroundColor: 'white',
+    backgroundColor: theme.card,
     padding: 20,
     paddingTop: 50,
     shadowColor: '#000',
@@ -280,36 +296,54 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2c3e50',
-    textAlign: 'center',
+    color: theme.textPrimary,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  themeToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  themeToggleText: {
+    color: theme.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
   },
   bulkInfo: {
-    backgroundColor: '#e8f5e8',
+    backgroundColor: theme.mode === 'dark' ? theme.background : '#e8f5e8',
     padding: 10,
     borderRadius: 8,
     marginTop: 10,
   },
   bulkInfoText: {
-    color: '#27ae60',
+    color: theme.textSecondary,
     fontSize: 14,
     textAlign: 'center',
     fontWeight: '500',
   },
   searchInput: {
-    backgroundColor: 'white',
+    backgroundColor: theme.card,
     margin: 15,
     padding: 15,
     borderRadius: 10,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.border,
+    color: theme.textPrimary,
   },
   productList: {
     padding: 15,
     paddingBottom: 100, // Space for cart button
   },
   productCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 15,
     marginBottom: 15,
@@ -328,17 +362,17 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: theme.textPrimary,
     marginBottom: 5,
   },
   productDescription: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: theme.textSecondary,
     marginBottom: 5,
   },
   productCategory: {
     fontSize: 12,
-    color: '#95a5a6',
+    color: theme.textSecondary,
     marginBottom: 10,
   },
   priceStockContainer: {
@@ -349,20 +383,20 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#27ae60',
+    color: theme.mode === 'dark' ? theme.textPrimary : '#27ae60',
   },
   productStock: {
     fontSize: 14,
     fontWeight: '500',
   },
   goodStock: {
-    color: '#27ae60',
+    color: theme.success,
   },
   lowStock: {
-    color: '#e74c3c',
+    color: theme.danger,
   },
   addButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: theme.accent,
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
@@ -383,7 +417,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 15,
     right: 15,
-    backgroundColor: '#e74c3c',
+    backgroundColor: theme.accent,
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -401,16 +435,16 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#7f8c8d',
+    color: theme.textSecondary,
   },
   errorText: {
     fontSize: 16,
-    color: '#e74c3c',
+    color: theme.danger,
     marginBottom: 20,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: theme.accent,
     padding: 12,
     borderRadius: 8,
     paddingHorizontal: 20,

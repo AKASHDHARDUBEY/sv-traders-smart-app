@@ -28,14 +28,16 @@ import {
 } from 'react-native';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
+import { useThemeMode } from '../theme/ThemeContext';
 
 /**
  * CART ITEM COMPONENT
- * 
+ *
  * React.memo prevents re-rendering unless props change.
- * This improves performance when cart has many items.
+ * Styles are passed in so it works with themed styles created
+ * inside the CartScreen component.
  */
-const CartItem = memo(({ item, onQuantityChange, onRemove }) => {
+const CartItem = memo(({ item, onQuantityChange, onRemove, styles }) => {
   return (
     <View style={styles.cartItem}>
       <View style={styles.itemInfo}>
@@ -87,6 +89,7 @@ const CartScreen = ({ navigation }) => {
   // Get user data from context
   const { user } = useUser();
   const userRole = user?.role || 'b2c';
+  const { theme } = useThemeMode();
   
   // Customer information state
   const [customerInfo, setCustomerInfo] = useState({
@@ -177,6 +180,8 @@ const CartScreen = ({ navigation }) => {
     setCustomerInfo(prev => ({ ...prev, [field]: value }));
   }, []);
 
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -206,6 +211,7 @@ const CartScreen = ({ navigation }) => {
                 item={item}
                 onQuantityChange={handleQuantityChange}
                 onRemove={removeItemFromCart}
+                styles={styles}
               />
             ))}
           </View>
@@ -286,14 +292,14 @@ const CartScreen = ({ navigation }) => {
   );
 };
 
-// React Native Styling
-const styles = StyleSheet.create({
+// React Native Styling depends on current theme
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.background,
   },
   header: {
-    backgroundColor: 'white',
+    backgroundColor: theme.card,
     padding: 20,
     paddingTop: 50,
     flexDirection: 'row',
@@ -311,11 +317,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: theme.textPrimary,
   },
   cartCount: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: theme.textSecondary,
   },
   emptyCart: {
     flex: 1,
@@ -326,11 +332,11 @@ const styles = StyleSheet.create({
   },
   emptyCartText: {
     fontSize: 18,
-    color: '#7f8c8d',
+    color: theme.textSecondary,
     marginBottom: 20,
   },
   continueShoppingButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: theme.accent,
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 10,
@@ -341,7 +347,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cartItems: {
-    backgroundColor: 'white',
+    backgroundColor: theme.card,
     margin: 15,
     borderRadius: 12,
     padding: 15,
@@ -352,7 +358,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#ecf0f1',
+    borderBottomColor: theme.border,
   },
   itemInfo: {
     flex: 1,
@@ -360,12 +366,12 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: theme.textPrimary,
     marginBottom: 5,
   },
   itemPrice: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: theme.textSecondary,
   },
   quantityContainer: {
     flexDirection: 'row',
@@ -373,7 +379,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
   },
   quantityButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: theme.accent,
     width: 30,
     height: 30,
     borderRadius: 15,
@@ -393,7 +399,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   customerInfo: {
-    backgroundColor: 'white',
+    backgroundColor: theme.card,
     margin: 15,
     borderRadius: 12,
     padding: 15,
@@ -401,24 +407,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: theme.textPrimary,
     marginBottom: 15,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     marginBottom: 15,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: theme.background,
+    color: theme.textPrimary,
   },
   addressInput: {
     height: 80,
     textAlignVertical: 'top',
   },
   orderSummary: {
-    backgroundColor: 'white',
+    backgroundColor: theme.card,
     margin: 15,
     borderRadius: 12,
     padding: 15,
@@ -431,31 +438,31 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 16,
-    color: '#2c3e50',
+    color: theme.textPrimary,
   },
   summaryValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: theme.textPrimary,
   },
   discountValue: {
-    color: '#27ae60',
+    color: theme.success,
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: '#ecf0f1',
+    borderTopColor: theme.border,
     marginTop: 10,
     paddingTop: 15,
   },
   totalLabel: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: theme.textPrimary,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#27ae60',
+    color: theme.success,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -471,10 +478,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scanButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: theme.card,
+    borderWidth: 1,
+    borderColor: theme.accent,
   },
   placeOrderButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.accent,
   },
   buttonText: {
     color: 'white',

@@ -18,7 +18,7 @@
  */
 
 import React, { lazy, Suspense } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { CartProvider } from './context/CartContext';
 import { UserProvider, useUser } from './context/UserContext';
+import { ThemeProvider, useThemeMode } from './theme/ThemeContext';
 // Uncomment to use Drawer Navigator instead of Bottom Tab Navigator:
 // import DrawerNavigator from './navigation/DrawerNavigator';
 
@@ -194,19 +195,41 @@ function MainAppNavigator() {
  * Context Providers must wrap NavigationContainer so all screens
  * can access context data.
  */
+const RootNavigator = () => {
+  const { theme, mode } = useThemeMode();
+
+  const navigationTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: theme.background,
+      card: theme.card,
+      text: theme.textPrimary,
+      primary: theme.accent,
+      border: theme.border,
+    },
+  };
+
+  return (
+    <NavigationContainer theme={navigationTheme}>
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      {/* Suspense shows loading screen while lazy-loaded components load */}
+      <Suspense fallback={<LoadingScreen />}>
+        <MainAppNavigator />
+      </Suspense>
+    </NavigationContainer>
+  );
+};
+
 export default function App() {
   return (
-    <UserProvider>
-      <CartProvider>
-        <NavigationContainer>
-          <StatusBar style="auto" />
-          {/* Suspense shows loading screen while lazy-loaded components load */}
-          <Suspense fallback={<LoadingScreen />}>
-            <MainAppNavigator />
-          </Suspense>
-        </NavigationContainer>
-      </CartProvider>
-    </UserProvider>
+    <ThemeProvider>
+      <UserProvider>
+        <CartProvider>
+          <RootNavigator />
+        </CartProvider>
+      </UserProvider>
+    </ThemeProvider>
   );
 }
 
