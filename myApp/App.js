@@ -4,18 +4,22 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { CartProvider } from './context/CartContext';
+import { UserProvider, useUser } from './context/UserContext';
 
 import LoginScreen from './screens/LoginScreen';
 import ProductListScreen from './screens/ProductListScreen';
 import CartScreen from './screens/CartScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AdminScreen from './screens/AdminScreen';
+import ScannerScreen from './screens/ScannerScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function TabNavigator({ route }) {
-  const { userRole } = route.params;
+function TabNavigator() {
+  const { user } = useUser();
+  const userRole = user?.role || 'b2c';
   
   return (
     <Tab.Navigator
@@ -25,6 +29,8 @@ function TabNavigator({ route }) {
 
           if (route.name === 'ProductList') {
             iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'Scanner') {
+            iconName = focused ? 'barcode' : 'barcode-outline';
           } else if (route.name === 'Cart') {
             iconName = focused ? 'cart' : 'cart-outline';
           } else if (route.name === 'Profile') {
@@ -43,19 +49,21 @@ function TabNavigator({ route }) {
       <Tab.Screen 
         name="ProductList" 
         component={ProductListScreen}
-        initialParams={{ userRole }}
         options={{ title: 'Products' }}
+      />
+      <Tab.Screen 
+        name="Scanner" 
+        component={ScannerScreen}
+        options={{ title: 'Scan' }}
       />
       <Tab.Screen 
         name="Cart" 
         component={CartScreen}
-        initialParams={{ userRole, cart: [] }}
         options={{ title: 'Cart' }}
       />
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen}
-        initialParams={{ userRole }}
         options={{ title: 'Profile' }}
       />
       {userRole === 'admin' && (
@@ -70,27 +78,32 @@ function TabNavigator({ route }) {
 }
 
 function MainAppNavigator() {
+  const { user } = useUser();
+
   return (
-    <Stack.Navigator initialRouteName="Login">
-      <Stack.Screen 
-        name="Login" 
-        component={LoginScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen 
-        name="MainApp" 
-        component={TabNavigator}
-        options={{ headerShown: false }}
-      />
+    <Stack.Navigator 
+      key={user ? "main" : "login"}
+      initialRouteName={user ? "MainApp" : "Login"}
+      screenOptions={{
+        headerShown: false,
+        animationEnabled: false
+      }}
+    >
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="MainApp" component={TabNavigator} />
     </Stack.Navigator>
   );
 }
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
-      <MainAppNavigator />
-    </NavigationContainer>
+    <UserProvider>
+      <CartProvider>
+        <NavigationContainer>
+          <StatusBar style="auto" />
+          <MainAppNavigator />
+        </NavigationContainer>
+      </CartProvider>
+    </UserProvider>
   );
 }

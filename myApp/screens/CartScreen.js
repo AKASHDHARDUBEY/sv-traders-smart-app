@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,43 +7,56 @@ import {
   StyleSheet,
   TextInput,
   Alert,
+  Button,
 } from 'react-native';
+import { useCart } from '../context/CartContext';
+import { useUser } from '../context/UserContext';
 
-const CartScreen = ({ navigation, route }) => {
-  const { cart: initialCart, userRole } = route.params;
-  const [cart, setCart] = useState(initialCart);
+const CartScreen = ({ navigation }) => {
+  const { 
+    items: cart, 
+    removeItemFromCart, 
+    clearCart, 
+    cartTotal, 
+    updateItemQuantity,
+    itemCount 
+  } = useCart();
+  
+  const { user } = useUser();
+  const userRole = user?.role || 'b2c';
+  
   const [customerInfo, setCustomerInfo] = useState({
-    name: '',
+    name: user?.username || '',
     phone: '',
     address: '',
   });
 
-  const updateQuantity = (productId, newQuantity) => {
-    if (newQuantity <= 0) {
-      setCart(cart.filter(item => item.id !== productId));
-    } else {
-      setCart(cart.map(item => {
-        if (item.id === productId) {
-          return { ...item, quantity: newQuantity };
-        }
-        return item;
-      }));
+  // Debug log
+  useEffect(() => {
+    console.log('CartScreen - Current cart items:', cart);
+    console.log('CartScreen - Cart total:', cartTotal);
+    console.log('CartScreen - Item count:', itemCount);
+  }, [cart, cartTotal, itemCount]);
+
+  const handleQuantityChange = (productId, change) => {
+    const item = cart.find(item => item.id === productId);
+    if (item) {
+      const newQuantity = (item.quantity || 1) + change;
+      if (newQuantity > 0) {
+        updateItemQuantity(productId, newQuantity);
+      } else {
+        removeItemFromCart(productId);
+      }
     }
   };
 
-  const calculateTotal = () => {
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    let discount = 0;
-    if (userRole === 'b2b') {
-      discount = subtotal * 0.1;
-    }
-    
-    return {
-      subtotal,
-      discount,
-      total: subtotal - discount,
-    };
+  const discount = userRole === 'b2b' ? cartTotal * 0.1 : 0;
+  const total = cartTotal - discount;
+  
+  const totals = {
+    subtotal: cartTotal,
+    discount: discount,
+    total: total
   };
 
   const handlePlaceOrder = () => {
@@ -56,28 +69,31 @@ const CartScreen = ({ navigation, route }) => {
       Alert.alert('Error', 'Please fill in your name and phone number');
       return;
     }
-
-    const totals = calculateTotal();
     
     Alert.alert(
       'Order Placed!',
-      `Thank you ${customerInfo.name}!\n\nOrder Total: ₹${totals.total}\nItems: ${cart.length}\n\nOrder ID: #${Math.floor(Math.random() * 10000)}`,
+      `Thank you ${customerInfo.name}!\n\nOrder Total: ₹${total.toFixed(2)}\nItems: ${cart.length}\n\nOrder ID: #${Math.floor(Math.random() * 10000)}`,
       [
         {
           text: 'OK',
-          onPress: () => navigation.navigate('ProductList'),
+          onPress: () => {
+            clearCart();
+            navigation.navigate('Home');
+          },
         },
       ]
     );
   };
 
-  const totals = calculateTotal();
+  const handleScanMore = () => {
+    navigation.navigate('Scanner');
+  };
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Shopping Cart</Text>
-        <Text style={styles.cartCount}>{cart.length} items</Text>
+        <Text style={styles.cartCount}>{itemCount} items</Text>
       </View>
 
       {cart.length === 0 ? (
@@ -97,30 +113,30 @@ const CartScreen = ({ navigation, route }) => {
               <View key={item.id} style={styles.cartItem}>
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemPrice}>₹{item.price} each</Text>
+                  <Text style={styles.itemPrice}>
+                    ₹{item.price} x {item.quantity || 1} = ₹{(item.price * (item.quantity || 1)).toFixed(2)}
+                  </Text>
                 </View>
                 
                 <View style={styles.quantityContainer}>
                   <TouchableOpacity
                     style={styles.quantityButton}
-                    onPress={() => updateQuantity(item.id, item.quantity - 1)}
+                    onPress={() => handleQuantityChange(item.id, -1)}
                   >
                     <Text style={styles.quantityButtonText}>-</Text>
                   </TouchableOpacity>
                   
-                  <Text style={styles.quantityText}>{item.quantity}</Text>
+                  <Text style={styles.quantityText}>
+                    {item.quantity || 1}
+                  </Text>
                   
                   <TouchableOpacity
                     style={styles.quantityButton}
-                    onPress={() => updateQuantity(item.id, item.quantity + 1)}
+                    onPress={() => handleQuantityChange(item.id, 1)}
                   >
                     <Text style={styles.quantityButtonText}>+</Text>
                   </TouchableOpacity>
                 </View>
-                
-                <Text style={styles.itemTotal}>
-                  ₹{item.price * item.quantity}
-                </Text>
               </View>
             ))}
           </View>
@@ -176,14 +192,20 @@ const CartScreen = ({ navigation, route }) => {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.placeOrderButton}
-            onPress={handlePlaceOrder}
-          >
-            <Text style={styles.placeOrderButtonText}>
-              Place Order - ₹{totals.total}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.scanButton]}
+              onPress={handleScanMore}
+            >
+              <Text style={styles.buttonText}>Scan More Items</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.placeOrderButton]}
+              onPress={handlePlaceOrder}
+            >
+              <Text style={styles.buttonText}>Place Order</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
     </ScrollView>
@@ -365,16 +387,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#27ae60',
   },
-  placeOrderButton: {
-    backgroundColor: '#e74c3c',
-    margin: 15,
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: 'center',
   },
-  placeOrderButtonText: {
+  scanButton: {
+    backgroundColor: '#34C759',
+  },
+  placeOrderButton: {
+    backgroundColor: '#007AFF',
+  },
+  buttonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

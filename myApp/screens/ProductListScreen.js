@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useCart } from '../context/CartContext';
+import { useUser } from '../context/UserContext';
 import {
   View,
   Text,
@@ -9,10 +11,11 @@ import {
   Alert,
 } from 'react-native';
 
-const ProductListScreen = ({ navigation, route }) => {
-  const { userRole } = route.params;
+const ProductListScreen = ({ navigation }) => {
+  const { user } = useUser();
+  const userRole = user?.role || 'b2c';
   const [searchQuery, setSearchQuery] = useState('');
-  const [cart, setCart] = useState([]);
+  const { addItemToCart, items: cart } = useCart();
 
   const [products] = useState([
     {
@@ -63,20 +66,13 @@ const ProductListScreen = ({ navigation, route }) => {
            product.category.toLowerCase().includes(query);
   });
 
-  const addToCart = (product) => {
-    const found = cart.find(item => item.id === product.id);
-    
-    if (found) {
-      setCart(cart.map(item => {
-        if (item.id === product.id) {
-          return { ...item, quantity: item.quantity + 1 };
-        }
-        return item;
-      }));
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
-    }
-    
+  const handleAddToCart = (product) => {
+    addItemToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      // Add any other product details you need
+    });
     Alert.alert('Success', `${product.name} added to cart!`);
   };
 
@@ -102,7 +98,7 @@ const ProductListScreen = ({ navigation, route }) => {
           styles.addButton,
           item.stock === 0 && styles.disabledButton
         ]}
-        onPress={() => addToCart(item)}
+        onPress={() => handleAddToCart(item)}
         disabled={item.stock === 0}
       >
         <Text style={[
@@ -155,8 +151,8 @@ const ProductListScreen = ({ navigation, route }) => {
 
       {cart.length > 0 && (
         <TouchableOpacity
-          style={styles.cartButton}
-          onPress={() => navigation.navigate('Cart', { cart, userRole })}
+          style={styles.addToCartButton}
+          onPress={() => navigation.navigate('Cart')}
         >
           <Text style={styles.cartButtonText}>
             Cart ({cart.length} items)

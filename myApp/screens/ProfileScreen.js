@@ -8,12 +8,14 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { useUser } from '../context/UserContext';
 
-const ProfileScreen = ({ navigation, route }) => {
-  const { userRole } = route.params;
+const ProfileScreen = ({ navigation }) => {
+  const { user, logout } = useUser();
+  const userRole = user?.role || 'b2c';
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
-    name: userRole === 'admin' ? 'Admin User' : 'John Doe',
+    name: userRole === 'admin' ? 'Admin User' : user?.username || 'John Doe',
     email: userRole === 'admin' ? 'admin@svtraders.com' : 'john@example.com',
     phone: '+91 98765 43210',
     address: '123 Main Street, City, State - 12345',
@@ -35,7 +37,13 @@ const ProfileScreen = ({ navigation, route }) => {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => navigation.navigate('Login')
+          onPress: () => {
+            logout();
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }]
+            });
+          }
         },
       ]
     );

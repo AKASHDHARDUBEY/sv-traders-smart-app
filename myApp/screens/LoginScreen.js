@@ -8,13 +8,16 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { useUser } from '../context/UserContext';
 
 const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  const { login } = useUser();
 
   const handleLogin = () => {
+    // Basic validation
     if (!username || !password || !selectedRole) {
       Alert.alert('Error', 'Please fill all fields and select a role');
       return;
@@ -25,7 +28,27 @@ const LoginScreen = ({ navigation }) => {
       return;
     }
 
-    navigation.replace('MainApp', { userRole: selectedRole, username });
+    // Simple authentication logic
+    try {
+      // For demo purposes, accept any username/password
+      // In a real app, you would validate against your backend here
+      console.log('Login attempt with:', { username, role: selectedRole });
+      
+      // Set user in context
+      login({
+        username,
+        role: selectedRole
+      });
+      
+      // Navigate to MainApp
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainApp' }]
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Login Failed', 'An error occurred during login. Please try again.');
+    }
   };
 
   const roles = [
