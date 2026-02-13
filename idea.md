@@ -50,14 +50,7 @@ A cross-platform mobile application for SV Traders that supports both **B2B and 
 ## 8. Expected Outcome
 A fully functional B2B & B2C mobile app for SV Traders that allows customers to easily browse, scan, and order products with real-time updates. The app will improve sales efficiency, reduce manual work, provide automated payment reminders, and deliver a modern digital shopping experience.
 
----
 
-## 9. Timeline (Optional)
-- **Week 1–2:** Research & UI design (Login, Product List, Cart)  
-- **Week 3–4:** Backend setup, database integration, and real-time sync  
-- **Week 5–6:** Smart product scanning & chatbot integration  
-- **Week 7:** Payment gateway setup + reminder system  
-- **Week 8:** Testing & deployment on Android/iOS  
 
 ---
 
