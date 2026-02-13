@@ -13,33 +13,7 @@ A cross-platform mobile application for SV Traders that supports both B2B and B2
 
 5. Key Features
 Login & Role-based Access (B2B wholesaler / B2C customer / Admin)
-Product Ordering System with real-time stock updates
-Smart Product Scanning (Barcode/QR and Image Search)
-Payment Integration with automated reminders for dues
-Chatbot Support for FAQs and instant query resolution
-Push Notifications for offers, updates, and reminders
-6. Target Users / Audience
-Retail Customers (B2C) buying small quantities
-Wholesale Buyers (B2B) placing bulk orders
-SV Traders Admins managing inventory, orders, and payments
-7. Technology Stack
-Frontend (Mobile App): React Native / Flutter
-Backend: Node.js + Express.js / Firebase
-Database: MongoDB Atlas / Firebase Firestore
-AI Features: Google Vision API (Image Recognition), TensorFlow.js
-Chatbot: Dialogflow / Rasa
+Product Orde
 Payments: Razorpay / Paytm / Stripe
 8. Expected Outcome
-A fully functional B2B & B2C mobile app for SV Traders that allows customers to easily browse, scan, and order products with real-time updates. The app will improve sales efficiency, reduce manual work, provide automated payment reminders, and deliver a modern digital shopping experience.
-
-9. Timeline (Optional)
-Week 1–2: Research & UI design (Login, Product List, Cart)
-Week 3–4: Backend setup, database integration, and real-time sync
-Week 5–6: Smart product scanning & chatbot integration
-Week 7: Payment gateway setup + reminder system
-Week 8: Testing & deployment on Android/iOS
-10. Additional Notes (Optional)
-Requires strong real-time synchronization for stock updates.
-Image-based product recognition may need AI/ML training for accuracy.
-Can be extended to include loyalty programs and multi-vendor marketplace in the future.
-
+A fully functional B2B & B2C mobile app for SV Traders that allows customers to easily browse, scan, and order products with real-time updates. The app will improve sales efficiency, reduce 
